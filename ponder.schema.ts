@@ -5,6 +5,13 @@ export const goalStatus = onchainEnum("goal_status", ["ACTIVE", "COMPLETED", "FA
 export const petType = onchainEnum("pet_type", ["DRAGON", "CAT", "PLANT"]);
 export const evolutionStage = onchainEnum("evolution_stage", ["EGG", "BABY", "ADULT"]);
 
+export const validationStatus = onchainEnum("validation_status", [
+  "PENDING", 
+  "APPROVED", 
+  "REJECTED", 
+  "DISPUTED"
+]);
+
 // ============ MVP CORE TABLES ============
 
 // Goals - main entity for dashboard
@@ -78,5 +85,63 @@ export const userStats = onchainTable(
   }),
   (table) => ({
     // No additional indexes needed for MVP
+  })
+);
+
+export const validationRequests = onchainTable(
+  "validation_requests",
+  (t) => ({
+    id: t.text().primaryKey(), // milestoneId (validation request per milestone)
+    submitter: t.hex().notNull(),
+    goalId: t.text().notNull(),
+    evidenceIPFS: t.text().notNull(),
+    goalStakeAmount: t.bigint().notNull(),
+    requiredValidators: t.integer().notNull(),
+    currentApprovals: t.integer().notNull().default(0),
+    currentRejections: t.integer().notNull().default(0),
+    status: validationStatus("status").notNull().default("PENDING"),
+    deadline: t.bigint().notNull(),
+    isResolved: t.boolean().notNull().default(false),
+    createdAt: t.bigint().notNull(),
+  }),
+  (table) => ({
+    submitterIdx: index().on(table.submitter),
+    statusIdx: index().on(table.status),
+    goalIdx: index().on(table.goalId),
+  })
+);
+
+// Validators table
+export const validators = onchainTable(
+  "validators",
+  (t) => ({
+    id: t.hex().primaryKey(), // validator address
+    stakedAmount: t.bigint().notNull(),
+    reputationScore: t.integer().notNull().default(1000),
+    totalValidations: t.integer().notNull().default(0),
+    accurateValidations: t.integer().notNull().default(0),
+    isActive: t.boolean().notNull().default(true),
+    registeredAt: t.bigint().notNull(),
+  }),
+  (table) => ({
+    activeIdx: index().on(table.isActive),
+    reputationIdx: index().on(table.reputationScore),
+  })
+);
+
+// Validation Submissions table (individual validator votes)
+export const validationSubmissions = onchainTable(
+  "validation_submissions",
+  (t) => ({
+    id: t.text().primaryKey(), // milestoneId_validatorAddress
+    milestoneId: t.text().notNull(),
+    validator: t.hex().notNull(),
+    approved: t.boolean().notNull(),
+    comment: t.text(),
+    submittedAt: t.bigint().notNull(),
+  }),
+  (table) => ({
+    milestoneIdx: index().on(table.milestoneId),
+    validatorIdx: index().on(table.validator),
   })
 );

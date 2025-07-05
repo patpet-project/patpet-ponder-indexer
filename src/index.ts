@@ -1,5 +1,7 @@
 import { ponder } from "ponder:registry";
 import { goals, milestones, pets, userStats } from "ponder:schema";
+import { validationRequests, validators, validationSubmissions } from "ponder:schema";
+
 
 // ============ MVP CORE EVENTS ============
 
@@ -201,3 +203,139 @@ async function updateUserStats(
     console.error("Error updating user stats:", error);
   }
 }
+
+
+// ============ VALIDATION SYSTEM EVENTS ============
+
+// Validator Registration
+ponder.on("PatValidationSystem:ValidatorRegistered", async ({ event, context }) => {
+  const { validator, stakedAmount, initialReputationScore, timestamp } = event.args;
+
+  await context.db.insert(validators).values({
+    id: validator,
+    stakedAmount: stakedAmount,
+    reputationScore: Number(initialReputationScore),
+    totalValidations: 0,
+    accurateValidations: 0,
+    isActive: true,
+    registeredAt: timestamp,
+  });
+});
+
+// Validation Request Created
+ponder.on("PatValidationSystem:ValidationRequested", async ({ event, context }) => {
+  const { 
+    milestoneId, 
+    submitter, 
+    evidenceIPFS, 
+    goalStakeAmount, 
+    requiredValidators,
+    deadline,
+    timestamp 
+  } = event.args;
+
+  // Get the goal ID from the milestone
+  const milestone = await context.db.find(milestones, { id: milestoneId.toString() });
+  const goalId = milestone?.goalId || "0";
+
+  await context.db.insert(validationRequests).values({
+    id: milestoneId.toString(),
+    submitter: submitter,
+    goalId: goalId,
+    evidenceIPFS: evidenceIPFS,
+    goalStakeAmount: goalStakeAmount,
+    requiredValidators: Number(requiredValidators),
+    currentApprovals: 0,
+    currentRejections: 0,
+    status: "PENDING",
+    deadline: deadline,
+    isResolved: false,
+    createdAt: timestamp,
+  });
+});
+
+// Validation Submitted (individual validator vote)
+ponder.on("PatValidationSystem:ValidationSubmitted", async ({ event, context }) => {
+  const { 
+    milestoneId, 
+    validator, 
+    approved, 
+    comment, 
+    currentApprovals, 
+    currentRejections,
+    timestamp 
+  } = event.args;
+
+  // Record the individual validation submission
+  await context.db.insert(validationSubmissions).values({
+    id: `${milestoneId.toString()}_${validator}`,
+    milestoneId: milestoneId.toString(),
+    validator: validator,
+    approved: approved,
+    comment: comment || "",
+    submittedAt: timestamp,
+  });
+
+  // Update the validation request with current vote counts
+  await context.db
+    .update(validationRequests, { id: milestoneId.toString() })
+    .set({
+      currentApprovals: Number(currentApprovals),
+      currentRejections: Number(currentRejections),
+    });
+
+  // Update validator stats
+  const validatorRecord = await context.db.find(validators, { id: validator });
+  if (validatorRecord) {
+    await context.db
+      .update(validators, { id: validator })
+      .set({
+        totalValidations: validatorRecord.totalValidations + 1,
+      });
+  }
+});
+
+// Validation Resolved (final decision made)
+ponder.on("PatValidationSystem:ValidationResolved", async ({ event, context }) => {
+  const { milestoneId, status, totalApprovals, totalRejections } = event.args;
+
+  const finalStatus = status === 1 ? "APPROVED" : "REJECTED"; // Assuming 1 = approved, 0 = rejected
+
+  await context.db
+    .update(validationRequests, { id: milestoneId.toString() })
+    .set({
+      status: finalStatus,
+      currentApprovals: Number(totalApprovals),
+      currentRejections: Number(totalRejections),
+      isResolved: true,
+    });
+});
+
+// Validator Deactivated (reputation too low)
+ponder.on("PatValidationSystem:ValidatorDeactivated", async ({ event, context }) => {
+  const { validator, finalReputationScore } = event.args;
+
+  await context.db
+    .update(validators, { id: validator })
+    .set({
+      isActive: false,
+      reputationScore: Number(finalReputationScore),
+    });
+});
+
+// Validator Rewarded (for accurate validation)
+ponder.on("PatValidationSystem:ValidatorRewarded", async ({ event, context }) => {
+  const { validator, amount, wasAccurate, newReputationScore } = event.args;
+
+  const validatorRecord = await context.db.find(validators, { id: validator });
+  if (validatorRecord) {
+    await context.db
+      .update(validators, { id: validator })
+      .set({
+        reputationScore: Number(newReputationScore),
+        accurateValidations: wasAccurate 
+          ? validatorRecord.accurateValidations + 1 
+          : validatorRecord.accurateValidations,
+      });
+  }
+});
