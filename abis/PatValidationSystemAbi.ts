@@ -1,0 +1,3 @@
+export const PatValidationSystemAbi = [
+// ...paste the full ABI array from PatValidationSystem.json here...
+] as const;

@@ -1,0 +1,71 @@
+type TokensInitialized @entity {
+  id: ID!
+  owner: String!
+  initialSupply: String!
+  maxSupply: String!
+  timestamp: String!
+}
+
+type AuthorizationChanged @entity {
+  id: ID!
+  account: String!
+  role: String!
+  authorized: Boolean!
+  changedBy: String!
+  timestamp: String!
+}
+
+type TokensMinted @entity {
+  id: ID!
+  to: String!
+  amount: String!
+  minter: String!
+  newTotalSupply: String!
+  remainingMintable: String!
+  reason: String!
+  timestamp: String!
+}
+
+type TokensBurned @entity {
+  id: ID!
+  from: String!
+  amount: String!
+  burner: String!
+  newTotalSupply: String!
+  reason: String!
+  timestamp: String!
+}
+
+type RewardDistributed @entity {
+  id: ID!
+  recipient: String!
+  amount: String!
+  reason: String!
+  distributor: String!
+  newTotalRewards: String!
+  timestamp: String!
+}
+
+type StakeLostRecorded @entity {
+  id: ID!
+  user: String!
+  amount: String!
+  reason: String!
+  recorder: String!
+  newTotalStakesLost: String!
+  timestamp: String!
+}
+
+type ContractPaused @entity {
+  id: ID!
+  pauser: String!
+  reason: String!
+  timestamp: String!
+}
+
+type ContractUnpaused @entity {
+  id: ID!
+  unpauser: String!
+  reason: String!
+  timestamp: String!
+}

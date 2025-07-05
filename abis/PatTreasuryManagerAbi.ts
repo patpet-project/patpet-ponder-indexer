@@ -1,0 +1,3 @@
+export const PatTreasuryManagerAbi = [
+// ...paste the full ABI array from PatTreasuryManager.json here...
+] as const;

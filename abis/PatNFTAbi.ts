@@ -1,0 +1,3 @@
+export const PatNFTAbi = [
+// ...paste the full ABI array from PatNFT.json here...
+] as const;

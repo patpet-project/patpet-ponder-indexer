@@ -1,0 +1,3 @@
+export const PATTokenAbi = [
+// ...paste the full ABI array from PATToken.json here...
+] as const;
